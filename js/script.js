@@ -1,5 +1,5 @@
 // ============================================
-// ScanSeq — AI Camera Music Sequencer
+// ScanSeq — Camera Music Sequencer
 // by @stablephisher
 // ============================================
 
@@ -152,7 +152,10 @@ function initArrays() {
 // --- SYNTH SETUP ---
 function createSynth() {
     if (polySynth) {
-        polySynth.dispose();
+        try { polySynth.releaseAll(Tone.now()); } catch(e) {}
+        try { polySynth.disconnect(); } catch(e) {}
+        setTimeout(() => { try { polySynth.dispose(); } catch(e) {} }, 200);
+        polySynth = null;
     }
     
     let synthOptions;
@@ -274,13 +277,20 @@ function startApp() {
     // Start Tone.js audio context
     Tone.start();
     
+    // Reveal app container FIRST so dimensions are computed correctly
+    document.getElementById('loading-screen').classList.add('fade-out');
+    document.getElementById('start-overlay').classList.add('fade-out');
+    document.getElementById('app-container').classList.remove('hidden');
+
+    // Now measure container after it's visible
     const container = document.getElementById('canvas-container');
-    const w = container.clientWidth;
-    const h = container.clientHeight;
+    const w = container.clientWidth || window.innerWidth;
+    const h = container.clientHeight || (window.innerHeight - 48 - 64);
     
     cnv = createCanvas(w, h);
     cnv.parent('canvas-container');
-    cnv.style('display', 'block');
+    // Force display via inline style (overrides CSS !important)
+    cnv.canvas.style.setProperty('display', 'block', 'important');
     
     // Setup audio
     createSynth();
@@ -307,14 +317,7 @@ function startApp() {
     
     // Setup UI event listeners
     setupUIListeners();
-    
-    // Hide loading & start overlay, show app
-    document.getElementById('loading-screen').classList.add('fade-out');
-    setTimeout(() => {
-        document.getElementById('start-overlay').classList.add('fade-out');
-        document.getElementById('app-container').classList.remove('hidden');
-    }, 300);
-    
+
     loop();
 }
 
@@ -439,7 +442,19 @@ function takeScreenshot() {
     document.body.appendChild(flash);
     setTimeout(() => flash.remove(), 300);
     
-    saveCanvas(cnv, 'scanseq-capture', 'png');
+    // Use native canvas API for reliable download across browsers
+    try {
+        const canvasEl = document.querySelector('#canvas-container canvas');
+        if (!canvasEl) return;
+        const dataUrl = canvasEl.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `scanseq-${Date.now()}.png`;
+        link.href = dataUrl;
+        link.click();
+    } catch(e) {
+        // Fallback to p5 saveCanvas
+        saveCanvas(cnv, 'scanseq-capture', 'png');
+    }
 }
 
 function updateNowPlaying() {
