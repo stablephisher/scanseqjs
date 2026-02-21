@@ -1,65 +1,272 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!DOCTYPE html>
+<html lang="en">
 
 <head>
-    <title>Scan Sequence</title>
-    <meta name="keywords" content="Interactive, Installation, Code, Art, Realtime, jeonghopark, jeongho park, 박정호, openFrameworks, creative code" />
-    <meta name="author" content="jeonghopark, jeongho park, 박정호" />
-    <meta name="publisher" content="jeonghopark, jeongho park, 박정호" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScanSeq — AI Camera Music Sequencer</title>
+    <meta name="description" content="Transform your webcam into a real-time music instrument. ScanSeq uses computer vision to generate melodies from light and motion." />
+    <meta name="keywords" content="AI, Music, Camera, Sequencer, Creative Coding, Hackathon, WebAudio, p5.js, Tone.js, stablephisher" />
+    <meta name="author" content="stablephisher" />
     
+    <!-- Open Graph -->
+    <meta property="og:title" content="ScanSeq — AI Camera Music Sequencer" />
+    <meta property="og:description" content="Transform your webcam into a real-time music instrument using computer vision." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://stablephisher.github.io/scanseqjs/" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <link rel="stylesheet" href="css/main.css">
+
     <script type="text/javascript" src="js/p5.min.js"></script>
     <script type="text/javascript" src="js/p5.dom.min.js"></script>
+    <script type="text/javascript" src="js/Tone.js"></script>
     <script type="text/javascript" src="js/script.js"></script>
-    
-    <style type="text/css">
-    html, body {
-        height: 100%;
-    }
-    body {
-        background-color: #000;
-        margin: 0;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-    video {
-        display: none;
-    }
-</style>
-
 </head>
 
 <body>
-    
-    <a href="https://github.com/jeonghopark/scanseqjs"><img style="position: absolute; top: 0; left: 0; border: 0;" src="https://github.blog/wp-content/uploads/2008/12/forkme_left_white_ffffff.png" alt="Fork me on GitHub" data-canonical-src="https://github.blog/wp-content/uploads/2008/12/forkme_left_white_ffffff.png"></a>
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loader-content">
+            <div class="loader-icon">
+                <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                    <circle cx="32" cy="32" r="28" stroke="url(#grad)" stroke-width="3" stroke-dasharray="8 4" class="spin-ring"/>
+                    <circle cx="32" cy="32" r="16" stroke="url(#grad)" stroke-width="2" stroke-dasharray="4 6" class="spin-ring-reverse"/>
+                    <circle cx="32" cy="32" r="5" fill="url(#grad)"/>
+                    <defs>
+                        <linearGradient id="grad" x1="0" y1="0" x2="64" y2="64">
+                            <stop offset="0%" stop-color="#6366f1"/>
+                            <stop offset="100%" stop-color="#ec4899"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <h2 class="loader-title">ScanSeq</h2>
+            <p class="loader-subtitle">Initializing Camera & Audio Engine...</p>
+            <div class="loader-bar"><div class="loader-bar-fill"></div></div>
+        </div>
+    </div>
+
+    <!-- Start Overlay (needs user gesture for audio) -->
+    <div id="start-overlay">
+        <div class="start-content">
+            <div class="start-icon-ring">
+                <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                    <circle cx="40" cy="40" r="36" stroke="url(#startGrad)" stroke-width="2" opacity="0.5"/>
+                    <polygon points="34,24 34,56 58,40" fill="url(#startGrad)"/>
+                    <defs>
+                        <linearGradient id="startGrad" x1="0" y1="0" x2="80" y2="80">
+                            <stop offset="0%" stop-color="#6366f1"/>
+                            <stop offset="100%" stop-color="#ec4899"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <h1 class="start-title">ScanSeq</h1>
+            <p class="start-desc">AI-Powered Camera Music Sequencer</p>
+            <p class="start-instruction">Your webcam captures light & motion, transforming them into real-time melodies</p>
+            <button id="start-btn" class="btn-gradient">
+                <span>Launch Experience</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+            <p class="start-note">Requires camera & audio permissions</p>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="app-container" class="hidden">
+        <!-- Top Bar -->
+        <header id="top-bar">
+            <div class="top-bar-left">
+                <div class="brand">
+                    <div class="brand-dot"></div>
+                    <span class="brand-name">ScanSeq</span>
+                    <span class="brand-badge">LIVE</span>
+                </div>
+            </div>
+            <div class="top-bar-center">
+                <div id="now-playing" class="now-playing">
+                    <div class="np-bars">
+                        <span></span><span></span><span></span><span></span><span></span>
+                    </div>
+                    <span class="np-text">Listening...</span>
+                </div>
+            </div>
+            <div class="top-bar-right">
+                <button id="btn-fullscreen" class="icon-btn" title="Fullscreen">
+                    <i data-lucide="maximize-2"></i>
+                </button>
+                <button id="btn-screenshot" class="icon-btn" title="Screenshot">
+                    <i data-lucide="camera"></i>
+                </button>
+                <a href="https://github.com/stablephisher/scanseqjs" target="_blank" class="icon-btn" title="GitHub">
+                    <i data-lucide="github"></i>
+                </a>
+            </div>
+        </header>
+
+        <!-- Canvas Container -->
+        <div id="canvas-container"></div>
+
+        <!-- Bottom Control Panel -->
+        <div id="control-panel">
+            <div class="controls-row">
+                <!-- Transport Controls -->
+                <div class="control-group transport-group">
+                    <button id="btn-play-pause" class="ctrl-btn ctrl-btn-primary" title="Play/Pause (Space)">
+                        <i data-lucide="pause" id="icon-play-pause"></i>
+                    </button>
+                    <button id="btn-mute" class="ctrl-btn" title="Mute (M)">
+                        <i data-lucide="volume-2" id="icon-mute"></i>
+                    </button>
+                </div>
+
+                <!-- Scale Selector -->
+                <div class="control-group">
+                    <label class="ctrl-label">Scale</label>
+                    <select id="scale-select" class="ctrl-select">
+                        <option value="pentatonic" selected>Pentatonic</option>
+                        <option value="major">Major</option>
+                        <option value="minor">Natural Minor</option>
+                        <option value="blues">Blues</option>
+                        <option value="chromatic">Chromatic</option>
+                        <option value="japanese">Japanese (In)</option>
+                        <option value="arabic">Arabic</option>
+                        <option value="harmonicMinor">Harmonic Minor</option>
+                    </select>
+                </div>
+
+                <!-- Root Note -->
+                <div class="control-group">
+                    <label class="ctrl-label">Root</label>
+                    <select id="root-select" class="ctrl-select">
+                        <option value="C" selected>C</option>
+                        <option value="C#">C#</option>
+                        <option value="D">D</option>
+                        <option value="D#">D#</option>
+                        <option value="E">E</option>
+                        <option value="F">F</option>
+                        <option value="F#">F#</option>
+                        <option value="G">G</option>
+                        <option value="G#">G#</option>
+                        <option value="A">A</option>
+                        <option value="A#">A#</option>
+                        <option value="B">B</option>
+                    </select>
+                </div>
+
+                <!-- Synth Type -->
+                <div class="control-group">
+                    <label class="ctrl-label">Synth</label>
+                    <select id="synth-select" class="ctrl-select">
+                        <option value="sine">Sine</option>
+                        <option value="triangle" selected>Triangle</option>
+                        <option value="sawtooth">Sawtooth</option>
+                        <option value="square">Square</option>
+                        <option value="am">AM Synth</option>
+                        <option value="fm">FM Synth</option>
+                    </select>
+                </div>
+
+                <!-- Sensitivity -->
+                <div class="control-group">
+                    <label class="ctrl-label">Sensitivity</label>
+                    <input type="range" id="sensitivity-slider" class="ctrl-slider" min="10" max="100" value="40" />
+                    <span id="sensitivity-value" class="ctrl-value">40</span>
+                </div>
+
+                <!-- Speed -->
+                <div class="control-group">
+                    <label class="ctrl-label">Speed</label>
+                    <input type="range" id="speed-slider" class="ctrl-slider" min="2" max="20" value="10" />
+                    <span id="speed-value" class="ctrl-value">10</span>
+                </div>
+
+                <!-- Lines -->
+                <div class="control-group">
+                    <label class="ctrl-label">Lines</label>
+                    <input type="range" id="lines-slider" class="ctrl-slider" min="5" max="40" value="20" />
+                    <span id="lines-value" class="ctrl-value">20</span>
+                </div>
+
+                <!-- Visual Theme -->
+                <div class="control-group">
+                    <label class="ctrl-label">Theme</label>
+                    <select id="theme-select" class="ctrl-select">
+                        <option value="neon" selected>Neon Glow</option>
+                        <option value="pastel">Pastel Dream</option>
+                        <option value="monochrome">Monochrome</option>
+                        <option value="fire">Fire</option>
+                        <option value="ocean">Ocean</option>
+                        <option value="matrix">Matrix</option>
+                    </select>
+                </div>
+
+                <!-- Effects -->
+                <div class="control-group">
+                    <label class="ctrl-label">FX</label>
+                    <select id="fx-select" class="ctrl-select">
+                        <option value="reverb" selected>Reverb</option>
+                        <option value="delay">Delay</option>
+                        <option value="chorus">Chorus</option>
+                        <option value="distortion">Distortion</option>
+                        <option value="none">Dry</option>
+                    </select>
+                </div>
+
+                <!-- Help -->
+                <div class="control-group">
+                    <button id="btn-help" class="ctrl-btn" title="Help (H)">
+                        <i data-lucide="help-circle"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Keyboard Shortcuts Overlay -->
+        <div id="help-overlay" class="overlay hidden">
+            <div class="overlay-card">
+                <div class="overlay-header">
+                    <h3>Keyboard Shortcuts</h3>
+                    <button id="close-help" class="icon-btn"><i data-lucide="x"></i></button>
+                </div>
+                <div class="shortcut-grid">
+                    <div class="shortcut-item"><kbd>Space</kbd><span>Play / Pause</span></div>
+                    <div class="shortcut-item"><kbd>M</kbd><span>Mute / Unmute</span></div>
+                    <div class="shortcut-item"><kbd>H</kbd><span>Toggle Help</span></div>
+                    <div class="shortcut-item"><kbd>F</kbd><span>Fullscreen</span></div>
+                    <div class="shortcut-item"><kbd>S</kbd><span>Screenshot</span></div>
+                    <div class="shortcut-item"><kbd>1-6</kbd><span>Switch Scale</span></div>
+                    <div class="shortcut-item"><kbd>↑ / ↓</kbd><span>Sensitivity ± </span></div>
+                    <div class="shortcut-item"><kbd>← / →</kbd><span>Speed ±</span></div>
+                    <div class="shortcut-item"><kbd>R</kbd><span>Randomize Scale & Root</span></div>
+                    <div class="shortcut-item"><kbd>T</kbd><span>Cycle Theme</span></div>
+                </div>
+                <p class="overlay-footer">Built with p5.js & Tone.js by <a href="https://github.com/stablephisher" target="_blank">@stablephisher</a></p>
+            </div>
+        </div>
+
+        <!-- Note Activity Display -->
+        <div id="note-display">
+            <div id="note-history"></div>
+        </div>
+
+        <!-- FPS Counter -->
+        <div id="fps-counter"></div>
+    </div>
 
     <script type="text/javascript" id="cookieinfo"
         src="js/cookieinfo.min.js"
         data-linkmsg="Privacy Policy"
         data-moreinfo="./privacypolicy.html">
     </script>
-
-
 </body>
-
-
-<!-- ??? WebAudio  -->
-<script type="text/javascript">
-
-    // Existing code unchanged.
-    // window.onload = function() {
-    //   var context = new AudioContext();
-    // }
-
-    // One-liner to resume playback when user interacted with the page.
-    // document.querySelector('button').addEventListener('click', function() {
-    //   context.resume().then(() => {
-    //     console.log('Playback resumed successfully');
-    //   });
-    // });
-
-</script>
-
-<script type="text/javascript" src="js/Tone.js"></script>
 
 </html>
